@@ -5,6 +5,7 @@ import jakarta.validation.constraints.*;
 
 @Entity
 public class Student {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

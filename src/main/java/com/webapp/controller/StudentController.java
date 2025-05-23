@@ -12,6 +12,7 @@ import java.util.List;
 @Controller
 @RequestMapping("/students")
 public class StudentController {
+
     private final StudentRepository studentRepo;
 
     public StudentController(StudentRepository studentRepo) {
