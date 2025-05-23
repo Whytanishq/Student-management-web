@@ -7,13 +7,30 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
+import java.time.Year;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Controller
 @RequestMapping("/students")
 public class StudentController {
 
     private final StudentRepository studentRepo;
+
+    // Full department names and their 3-letter codes
+    private static final Map<String, String> DEPARTMENTS;
+    static {
+        DEPARTMENTS = new LinkedHashMap<>();
+        DEPARTMENTS.put("CSE", "Computer Science and Engineering");
+        DEPARTMENTS.put("ECE", "Electronics and Communication Engineering");
+        DEPARTMENTS.put("EEE", "Electrical and Electronics Engineering");
+        DEPARTMENTS.put("MEC", "Mechanical Engineering");
+        DEPARTMENTS.put("CIV", "Civil Engineering");
+        DEPARTMENTS.put("INF", "Information Technology");
+        DEPARTMENTS.put("AID", "Artificial Intelligence and Data Science");
+        DEPARTMENTS.put("DSC", "Data Science");
+    }
 
     public StudentController(StudentRepository studentRepo) {
         this.studentRepo = studentRepo;
@@ -29,14 +46,50 @@ public class StudentController {
     @GetMapping("/new")
     public String newStudentForm(Model model) {
         model.addAttribute("student", new Student());
+        model.addAttribute("departments", DEPARTMENTS);
         return "student_form";
     }
 
     @PostMapping("/save")
-    public String saveStudent(@Valid @ModelAttribute Student student, BindingResult result) {
+    public String saveStudent(@Valid @ModelAttribute Student student, BindingResult result, Model model) {
+        model.addAttribute("departments", DEPARTMENTS);
+
+        // Unique email check (ignore if updating same student)
+        boolean emailExists = studentRepo.existsByEmail(student.getEmail());
+        if (emailExists) {
+            if (student.getId() == null || !studentRepo.findById(student.getId())
+                    .map(s -> s.getEmail().equals(student.getEmail())).orElse(false)) {
+                result.rejectValue("email", "error.student", "This mail has already been used");
+            }
+        }
+
+        // On create, generate enrollmentNo
+        if (student.getId() == null) {
+            String deptCode = getDepartmentCode(student.getDepartment()); // 3-letter code
+            String year = String.valueOf(Year.now().getValue()).substring(2); // last 2 digits
+            String prefix = year + deptCode;
+            long count = studentRepo.countByEnrollmentNoStartingWith(prefix);
+            String sequence = String.format("%04d", count + 1);
+            String enrollmentNo = prefix + sequence;
+            // Ensure uniqueness (rare, but possible with concurrent requests)
+            while (studentRepo.existsByEnrollmentNo(enrollmentNo)) {
+                count++;
+                sequence = String.format("%04d", count + 1);
+                enrollmentNo = prefix + sequence;
+            }
+            student.setEnrollmentNo(enrollmentNo);
+        } else {
+            // On edit, keep the same enrollmentNo
+            Student existing = studentRepo.findById(student.getId()).orElse(null);
+            if (existing != null) {
+                student.setEnrollmentNo(existing.getEnrollmentNo());
+            }
+        }
+
         if (result.hasErrors()) {
             return "student_form";
         }
+
         studentRepo.save(student);
         return "redirect:/students";
     }
@@ -46,6 +99,7 @@ public class StudentController {
         Student student = studentRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid student Id:" + id));
         model.addAttribute("student", student);
+        model.addAttribute("departments", DEPARTMENTS);
         return "student_form";
     }
 
@@ -53,5 +107,16 @@ public class StudentController {
     public String deleteStudent(@PathVariable Long id) {
         studentRepo.deleteById(id);
         return "redirect:/students";
+    }
+
+    private String getDepartmentCode(String departmentName) {
+        // Find code by full department name
+        for (Map.Entry<String, String> entry : DEPARTMENTS.entrySet()) {
+            if (entry.getValue().equals(departmentName)) {
+                return entry.getKey();
+            }
+        }
+        // Fallback: use first 3 uppercase letters
+        return departmentName.replaceAll("[^A-Z]", "").substring(0, 3);
     }
 }

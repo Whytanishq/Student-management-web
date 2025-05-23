@@ -19,10 +19,10 @@ public class Student {
 
     @NotBlank(message = "Email is required")
     @Email(message = "Invalid email format")
+    @Column(unique = true)
     private String email;
 
-    @NotBlank(message = "Enrollment number is required")
-    @Pattern(regexp = "^[A-Za-z0-9]{8,20}$", message = "Invalid enrollment number")
+    @Column(unique = true)
     private String enrollmentNo;
 
     // Getters & Setters
