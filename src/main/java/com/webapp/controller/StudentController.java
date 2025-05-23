@@ -18,7 +18,6 @@ public class StudentController {
 
     private final StudentRepository studentRepo;
 
-    // Full department names and their 3-letter codes
     private static final Map<String, String> DEPARTMENTS;
     static {
         DEPARTMENTS = new LinkedHashMap<>();
@@ -54,7 +53,6 @@ public class StudentController {
     public String saveStudent(@Valid @ModelAttribute Student student, BindingResult result, Model model) {
         model.addAttribute("departments", DEPARTMENTS);
 
-        // Unique email check (ignore if updating same student)
         boolean emailExists = studentRepo.existsByEmail(student.getEmail());
         if (emailExists) {
             if (student.getId() == null || !studentRepo.findById(student.getId())
@@ -63,7 +61,6 @@ public class StudentController {
             }
         }
 
-        // On create, generate enrollmentNo
         if (student.getId() == null) {
             String deptCode = getDepartmentCode(student.getDepartment()); // 3-letter code
             String year = String.valueOf(Year.now().getValue()).substring(2); // last 2 digits
@@ -71,7 +68,6 @@ public class StudentController {
             long count = studentRepo.countByEnrollmentNoStartingWith(prefix);
             String sequence = String.format("%04d", count + 1);
             String enrollmentNo = prefix + sequence;
-            // Ensure uniqueness (rare, but possible with concurrent requests)
             while (studentRepo.existsByEnrollmentNo(enrollmentNo)) {
                 count++;
                 sequence = String.format("%04d", count + 1);
@@ -79,7 +75,6 @@ public class StudentController {
             }
             student.setEnrollmentNo(enrollmentNo);
         } else {
-            // On edit, keep the same enrollmentNo
             Student existing = studentRepo.findById(student.getId()).orElse(null);
             if (existing != null) {
                 student.setEnrollmentNo(existing.getEnrollmentNo());
@@ -110,13 +105,11 @@ public class StudentController {
     }
 
     private String getDepartmentCode(String departmentName) {
-        // Find code by full department name
         for (Map.Entry<String, String> entry : DEPARTMENTS.entrySet()) {
             if (entry.getValue().equals(departmentName)) {
                 return entry.getKey();
             }
         }
-        // Fallback: use first 3 uppercase letters
         return departmentName.replaceAll("[^A-Z]", "").substring(0, 3);
     }
 }
