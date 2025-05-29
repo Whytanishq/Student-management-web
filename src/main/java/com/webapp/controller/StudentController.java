@@ -1,22 +1,35 @@
 package com.webapp.controller;
 
 import com.webapp.entity.Student;
-import com.webapp.repository.StudentRepository;
+import com.webapp.entity.User;
+import com.webapp.entity.Role;
+import com.webapp.respository.StudentRepository;
+import com.webapp.respository.UserRepository;
+import com.webapp.respository.RoleRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import java.time.Year;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Controller
-@RequestMapping("/students")
 public class StudentController {
 
     private final StudentRepository studentRepo;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private RoleRepository roleRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
     private static final Map<String, String> DEPARTMENTS;
     static {
@@ -35,39 +48,43 @@ public class StudentController {
         this.studentRepo = studentRepo;
     }
 
-    @GetMapping
-    public String listStudents(Model model) {
+    // Admin access to student list
+    @RequestMapping("/students")
+    public String studentManagement(Model model) {
         List<Student> students = studentRepo.findAll();
         model.addAttribute("students", students);
         return "student_list";
     }
 
-    @GetMapping("/new")
+    @GetMapping("/students/new")
     public String newStudentForm(Model model) {
         model.addAttribute("student", new Student());
         model.addAttribute("departments", DEPARTMENTS);
         return "student_form";
     }
 
-    @PostMapping("/save")
+    @PostMapping("/students/save")
     public String saveStudent(@Valid @ModelAttribute Student student, BindingResult result, Model model) {
         model.addAttribute("departments", DEPARTMENTS);
 
+        // Check for email uniqueness
         boolean emailExists = studentRepo.existsByEmail(student.getEmail());
         if (emailExists) {
             if (student.getId() == null || !studentRepo.findById(student.getId())
                     .map(s -> s.getEmail().equals(student.getEmail())).orElse(false)) {
-                result.rejectValue("email", "error.student", "This mail has already been used");
+                result.rejectValue("email", "error.student", "This email has already been used");
             }
         }
 
+        // Enrollment number generation for new students
         if (student.getId() == null) {
-            String deptCode = getDepartmentCode(student.getDepartment()); // 3-letter code
-            String year = String.valueOf(Year.now().getValue()).substring(2); // last 2 digits
+            String deptCode = getDepartmentCode(student.getDepartment());
+            String year = String.valueOf(Year.now().getValue()).substring(2);
             String prefix = year + deptCode;
             long count = studentRepo.countByEnrollmentNoStartingWith(prefix);
             String sequence = String.format("%04d", count + 1);
             String enrollmentNo = prefix + sequence;
+
             while (studentRepo.existsByEnrollmentNo(enrollmentNo)) {
                 count++;
                 sequence = String.format("%04d", count + 1);
@@ -75,6 +92,7 @@ public class StudentController {
             }
             student.setEnrollmentNo(enrollmentNo);
         } else {
+            // Preserve existing enrollment number
             Student existing = studentRepo.findById(student.getId()).orElse(null);
             if (existing != null) {
                 student.setEnrollmentNo(existing.getEnrollmentNo());
@@ -86,10 +104,12 @@ public class StudentController {
         }
 
         studentRepo.save(student);
+        createOrUpdateStudentUserAccount(student);
+
         return "redirect:/students";
     }
 
-    @GetMapping("/edit/{id}")
+    @GetMapping("/students/edit/{id}")
     public String editStudent(@PathVariable Long id, Model model) {
         Student student = studentRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid student Id:" + id));
@@ -98,10 +118,70 @@ public class StudentController {
         return "student_form";
     }
 
-    @GetMapping("/delete/{id}")
+    @GetMapping("/students/delete/{id}")
     public String deleteStudent(@PathVariable Long id) {
+        Student student = studentRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid student Id:" + id));
+
+        userRepository.findByUsername(student.getEnrollmentNo())
+                .ifPresent(user -> userRepository.delete(user));
+
         studentRepo.deleteById(id);
+
         return "redirect:/students";
+    }
+
+    @GetMapping("/student/details")
+    public String studentDetails(Model model, Authentication authentication) {
+        try {
+            String enrollmentNo = authentication.getName();
+            Student student = studentRepo.findByEnrollmentNo(enrollmentNo)
+                    .orElseThrow(() -> new IllegalArgumentException("Student not found"));
+
+            model.addAttribute("student", student);
+            return "student_details";
+        } catch (Exception e) {
+            return "redirect:/login_student?error=student_not_found";
+        }
+    }
+
+    // Display change password form
+    @GetMapping("/student/change-password")
+    public String showChangePasswordForm() {
+        return "change_password";
+    }
+
+    // Process the password change
+    @PostMapping("/student/change-password")
+    public String changePassword(
+            @RequestParam String oldPassword,
+            @RequestParam String newPassword,
+            @RequestParam String confirmPassword,
+            Authentication authentication,
+            Model model
+    ) {
+        String username = authentication.getName();  // enrollment number
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        // Validate old password
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            model.addAttribute("error", "Old password is incorrect");
+            return "change_password";
+        }
+
+        // Check new password and confirm password match
+        if (!newPassword.equals(confirmPassword)) {
+            model.addAttribute("error", "New password and confirm password do not match");
+            return "change_password";
+        }
+
+        // Save new password encoded
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        model.addAttribute("success", "Password changed successfully");
+        return "change_password";
     }
 
     private String getDepartmentCode(String departmentName) {
@@ -111,5 +191,27 @@ public class StudentController {
             }
         }
         return departmentName.replaceAll("[^A-Z]", "").substring(0, 3);
+    }
+
+    private void createOrUpdateStudentUserAccount(Student student) {
+        String username = student.getEnrollmentNo();
+
+        userRepository.findByUsername(username).ifPresentOrElse(
+                user -> {
+                    user.setPassword(passwordEncoder.encode(student.getEnrollmentNo()));
+                    userRepository.save(user);
+                },
+                () -> {
+                    User user = new User();
+                    user.setUsername(username);
+                    user.setPassword(passwordEncoder.encode(student.getEnrollmentNo()));
+
+                    Role studentRole = roleRepository.findByName("ROLE_STUDENT")
+                            .orElseThrow(() -> new RuntimeException("Student role not found"));
+                    user.setRoles(Collections.singleton(studentRole));
+
+                    userRepository.save(user);
+                }
+        );
     }
 }

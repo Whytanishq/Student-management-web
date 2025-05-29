@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Student Details</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .details-card {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .detail-row {
+            display: flex;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .detail-label {
+            font-weight: bold;
+            width: 150px;
+            text-align: left;
+        }
+        .detail-value {
+            flex: 1;
+            text-align: left;
+        }
+        .action-buttons {
+            margin-top: 30px;
+        }
+        .btn {
+            padding: 10px 20px;
+            margin: 0 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        .btn-change-password {
+            background-color: #3498db;
+            color: white;
+        }
+        .btn-logout {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Your Details</h2>
+
+    <div class="details-card">
+        <div class="detail-row">
+            <div class="detail-label">Name:</div>
+            <div class="detail-value" th:text="${student.name}"></div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Department:</div>
+            <div class="detail-value" th:text="${student.department}"></div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Email:</div>
+            <div class="detail-value" th:text="${student.email}"></div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Enrollment No:</div>
+            <div class="detail-value" th:text="${student.enrollmentNo}"></div>
+        </div>
+    </div>
+
+    <div class="action-buttons">
+        <a href="/student/change-password" class="btn btn-change-password">Change Password</a>
+        <a href="/logout" class="btn btn-logout">Logout</a>
+    </div>
+</div>
+</body>
+</html>
