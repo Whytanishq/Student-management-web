@@ -8,9 +8,11 @@ public class Subject {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String code; // e.g., "CSE101"
-    private String name; // e.g., "Data Structures"
+    private String code;
+    private String name;
     private int credits;
+    private String semester; // "Semester 1", "Semester 2", etc.
+    private String department; // "CSE", "ECE", etc. or "ALL" for common subjects
 
     // Getters and setters
     public Long getId() { return id; }
@@ -21,4 +23,8 @@ public class Subject {
     public void setName(String name) { this.name = name; }
     public int getCredits() { return credits; }
     public void setCredits(int credits) { this.credits = credits; }
+    public String getSemester() { return semester; }
+    public void setSemester(String semester) { this.semester = semester; }
+    public String getDepartment() { return department; }
+    public void setDepartment(String department) { this.department = department; }
 }

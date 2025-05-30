@@ -1,11 +1,7 @@
 package com.webapp.controller;
 
-import com.webapp.entity.Student;
-import com.webapp.entity.User;
-import com.webapp.entity.Role;
-import com.webapp.respository.StudentRepository;
-import com.webapp.respository.UserRepository;
-import com.webapp.respository.RoleRepository;
+import com.webapp.entity.*;
+import com.webapp.respository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -14,6 +10,7 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
+
 import java.time.Year;
 import java.util.*;
 
@@ -31,6 +28,15 @@ public class StudentController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private SemesterRepository semesterRepository;
+
+    @Autowired
+    private SubjectRepository subjectRepository;
+
+    @Autowired
+    private EnrollmentRepository enrollmentRepository;
+
     private static final Map<String, String> DEPARTMENTS;
     static {
         DEPARTMENTS = new LinkedHashMap<>();
@@ -44,6 +50,7 @@ public class StudentController {
         DEPARTMENTS.put("DSC", "Data Science");
     }
 
+    @Autowired
     public StudentController(StudentRepository studentRepo) {
         this.studentRepo = studentRepo;
     }
@@ -131,6 +138,110 @@ public class StudentController {
         return "redirect:/students";
     }
 
+    // Manage marks - merged version
+    @GetMapping("/students/manage-marks/{studentId}")
+    public String manageMarks(@PathVariable Long studentId, Model model) {
+        Student student = studentRepo.findById(studentId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid student Id:" + studentId));
+
+        List<Semester> semesters = semesterRepository.findAll();
+
+        // Create map of semesters to subjects for this student's department
+        Map<Semester, List<Subject>> semesterSubjects = new LinkedHashMap<>();
+        for (Semester semester : semesters) {
+            List<Subject> subjects = subjectRepository.findBySemesterAndDepartment(
+                    semester.getName(), student.getDepartment());
+            semesterSubjects.put(semester, subjects);
+        }
+
+        model.addAttribute("student", student);
+        model.addAttribute("semesterSubjects", semesterSubjects);
+        model.addAttribute("semesters", semesters);
+
+        return "manage_marks";
+    }
+
+    @GetMapping("/students/view-marks")
+    public String viewMarks(@RequestParam Long studentId,
+                            @RequestParam Long semesterId,
+                            @RequestParam(required = false) Long subjectId,
+                            Model model) {
+
+        Student student = studentRepo.findById(studentId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid student Id:" + studentId));
+
+        Semester semester = semesterRepository.findById(semesterId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid semester Id:" + semesterId));
+
+        List<Subject> subjects = subjectRepository.findBySemesterAndDepartment(
+                semester.getName(), student.getDepartment());
+
+        List<Enrollment> enrollments;
+        Subject selectedSubject = null;
+
+        if (subjectId != null) {
+            enrollments = enrollmentRepository.findByStudentIdAndSemesterIdAndSubjectId(
+                            studentId, semesterId, subjectId)
+                    .map(List::of)
+                    .orElseGet(ArrayList::new);
+
+            selectedSubject = subjects.stream()
+                    .filter(s -> s.getId().equals(subjectId))
+                    .findFirst()
+                    .orElse(null);
+        } else {
+            enrollments = enrollmentRepository.findByStudentIdAndSemesterId(studentId, semesterId);
+        }
+
+        boolean isEditable = isCurrentSemester(semester);
+
+        model.addAttribute("student", student);
+        model.addAttribute("selectedSemester", semester);
+        model.addAttribute("selectedSubject", selectedSubject);
+        model.addAttribute("subjects", subjects);
+        model.addAttribute("enrollments", enrollments);
+        model.addAttribute("isEditable", isEditable);
+        model.addAttribute("semesters", semesterRepository.findAll());
+
+        return "manage_marks";
+    }
+
+    @PostMapping("/students/save-marks")
+    public String saveMarks(@RequestParam Long studentId,
+                            @RequestParam Long semesterId,
+                            @RequestParam List<Long> enrollmentIds,
+                            @RequestParam List<Integer> marks) {
+
+        for (int i = 0; i < enrollmentIds.size(); i++) {
+            Enrollment enrollment = enrollmentRepository.findById(enrollmentIds.get(i))
+                    .orElseThrow(() -> new IllegalArgumentException("Invalid enrollment ID"));
+
+            int newMarks = marks.get(i);
+            enrollment.setMarks(newMarks);
+            enrollment.setGrade(calculateGrade(newMarks));
+            enrollment.setPassed(newMarks >= 40);
+
+            enrollmentRepository.save(enrollment);
+        }
+
+        return "redirect:/students/view-marks?studentId=" + studentId + "&semesterId=" + semesterId;
+    }
+
+    private boolean isCurrentSemester(Semester semester) {
+        // TODO: Implement logic to check if semester is current
+        return true;
+    }
+
+    private String calculateGrade(int marks) {
+        if (marks >= 90) return "A+";
+        if (marks >= 80) return "A";
+        if (marks >= 70) return "B+";
+        if (marks >= 60) return "B";
+        if (marks >= 50) return "C";
+        if (marks >= 40) return "D";
+        return "F";
+    }
+
     @GetMapping("/student/profile")
     public String studentProfile(Model model, Authentication authentication) {
         try {
@@ -139,19 +250,17 @@ public class StudentController {
                     .orElseThrow(() -> new IllegalArgumentException("Student not found"));
 
             model.addAttribute("student", student);
-            return "student_details";  // You can keep the same view name or rename it as you wish
+            return "student_details";
         } catch (Exception e) {
             return "redirect:/login_student?error=student_not_found";
         }
     }
 
-    // Display change password form
     @GetMapping("/student/change-password")
     public String showChangePasswordForm() {
         return "change_password";
     }
 
-    // Process the password change
     @PostMapping("/student/change-password")
     public String changePassword(
             @RequestParam String oldPassword,
@@ -160,23 +269,20 @@ public class StudentController {
             Authentication authentication,
             Model model
     ) {
-        String username = authentication.getName();  // enrollment number
+        String username = authentication.getName();
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        // Validate old password
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             model.addAttribute("error", "Old password is incorrect");
             return "change_password";
         }
 
-        // Check new password and confirm password match
         if (!newPassword.equals(confirmPassword)) {
             model.addAttribute("error", "New password and confirm password do not match");
             return "change_password";
         }
 
-        // Save new password encoded
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
 

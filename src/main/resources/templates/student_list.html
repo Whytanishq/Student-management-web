@@ -22,6 +22,7 @@
                     <th>Department</th>
                     <th>Email</th>
                     <th>Enrollment No</th>
+                    <th>Manage Marks</th>  <!-- New column added here -->
                     <th>Actions</th>
                 </tr>
                 </thead>
@@ -33,13 +34,17 @@
                     <td th:text="${student.email}"></td>
                     <td th:text="${student.enrollmentNo}"></td>
                     <td>
+                        <a th:href="@{/students/manage-marks/{id}(id=${student.id})}"
+                           class="btn btn-sm btn-info">Manage Marks</a>
+                    </td>
+                    <td>
                         <a th:href="@{/students/edit/{id}(id=${student.id})}" class="btn btn-sm btn-primary me-1">Edit</a>
                         <a th:href="@{/students/delete/{id}(id=${student.id})}" class="btn btn-sm btn-danger"
                            onclick="return confirm('Are you sure you want to delete this student?');">Delete</a>
                     </td>
                 </tr>
                 <tr th:if="${#lists.isEmpty(students)}">
-                    <td colspan="6" class="text-center text-muted">No students found.</td>
+                    <td colspan="7" class="text-center text-muted">No students found.</td>
                 </tr>
                 </tbody>
             </table>
