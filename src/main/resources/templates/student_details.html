@@ -11,12 +11,13 @@
             background-color: #f5f5f5;
         }
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 40px auto;
             padding: 20px;
             background: white;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: left;
         }
         .details-card {
             background: #ffffff;
@@ -34,14 +35,34 @@
         .detail-label {
             font-weight: bold;
             width: 150px;
-            text-align: left;
         }
         .detail-value {
             flex: 1;
-            text-align: left;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 8px 12px;
+            text-align: center;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        .gpa-status {
+            font-size: 18px;
+            margin-bottom: 20px;
         }
         .action-buttons {
             margin-top: 30px;
+            text-align: center;
         }
         .btn {
             padding: 10px 20px;
@@ -52,14 +73,16 @@
             text-decoration: none;
             font-size: 14px;
             transition: background-color 0.3s;
+            color: white;
         }
         .btn-change-password {
             background-color: #3498db;
-            color: white;
         }
         .btn-logout {
             background-color: #e74c3c;
-            color: white;
+        }
+        .btn-view-history {
+            background-color: #2ecc71;
         }
         .btn:hover {
             opacity: 0.9;
@@ -89,9 +112,41 @@
         </div>
     </div>
 
+    <h3>Current Semester Subjects</h3>
+    <table>
+        <thead>
+        <tr>
+            <th>Subject Code</th>
+            <th>Name</th>
+            <th>Credits</th>
+            <th>Marks</th>
+            <th>Grade</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="enroll : ${currentEnrollments}">
+            <td th:text="${enroll.subject.code}"></td>
+            <td th:text="${enroll.subject.name}"></td>
+            <td th:text="${enroll.subject.credits}"></td>
+            <td th:text="${enroll.marks}"></td>
+            <td th:text="${enroll.grade}"></td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div class="gpa-status">
+        <p><b>GPA:</b> <span th:text="${#numbers.formatDecimal(currentGPA, 1, 2)}"></span></p>
+        <p><b>Status:</b>
+            <span th:text="${isPass != null ? (isPass ? 'PASS' : 'FAIL') : 'N/A'}"></span>
+        </p>
+    </div>
+
     <div class="action-buttons">
+        <a href="/student/academic-history" class="btn btn-view-history">View Academic History</a>
         <a href="/student/change-password" class="btn btn-change-password">Change Password</a>
-        <a href="/logout" class="btn btn-logout">Logout</a>
+        <form action="/logout" method="post" style="display:inline;">
+            <button type="submit" class="btn btn-logout">Logout</button>
+        </form>
     </div>
 </div>
 </body>

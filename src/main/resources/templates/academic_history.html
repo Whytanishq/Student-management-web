@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Academic History</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            text-align: center;
+        }
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            background: white;
+            border-radius: 8px;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: left;
+        }
+        h2 {
+            margin-bottom: 30px;
+        }
+        h3 {
+            margin-top: 40px;
+            margin-bottom: 10px;
+            color: #3498db;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: center;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        a.btn-profile {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #2ecc71;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        a.btn-profile:hover {
+            background-color: #27ae60;
+        }
+        p.no-history {
+            font-style: italic;
+            color: #888;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Academic History for <span th:text="${student.name}">Student Name</span></h2>
+
+    <div th:if="${history != null and !#lists.isEmpty(history)}">
+        <div th:each="entry : ${history}">
+            <h3 th:text="${entry.key?.name} + ' (' + entry.key?.year + ')'">Semester (Year)</h3>
+            <table>
+                <thead>
+                <tr>
+                    <th>Subject Code</th>
+                    <th>Name</th>
+                    <th>Credits</th>
+                    <th>Marks</th>
+                    <th>Grade</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="enroll : ${entry.value}">
+                    <td th:text="${enroll.subject.code}">Code</td>
+                    <td th:text="${enroll.subject.name}">Subject</td>
+                    <td th:text="${enroll.subject.credits}">Credits</td>
+                    <td th:text="${enroll.marks}">Marks</td>
+                    <td th:text="${enroll.grade}">Grade</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div th:if="${history == null or #lists.isEmpty(history)}">
+        <p class="no-history">No academic history found.</p>
+    </div>
+
+    <a href="/student/details" class="btn-profile">My Profile</a>
+</div>
+</body>
+</html>

@@ -3,12 +3,21 @@ package com.webapp.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 
+import java.util.List;
+
 @Entity
 public class Student {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @OneToMany(mappedBy = "student")
+    private List<Enrollment> enrollments;
+
+    public List<Enrollment> getEnrollments() { return enrollments; }
+    public void setEnrollments(List<Enrollment> enrollments) { this.enrollments = enrollments; }
+
 
     @NotBlank(message = "Name is required")
     @Size(min = 2, max = 50, message = "Name must be between 2-50 characters")

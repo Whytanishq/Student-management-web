@@ -131,15 +131,15 @@ public class StudentController {
         return "redirect:/students";
     }
 
-    @GetMapping("/student/details")
-    public String studentDetails(Model model, Authentication authentication) {
+    @GetMapping("/student/profile")
+    public String studentProfile(Model model, Authentication authentication) {
         try {
             String enrollmentNo = authentication.getName();
             Student student = studentRepo.findByEnrollmentNo(enrollmentNo)
                     .orElseThrow(() -> new IllegalArgumentException("Student not found"));
 
             model.addAttribute("student", student);
-            return "student_details";
+            return "student_details";  // You can keep the same view name or rename it as you wish
         } catch (Exception e) {
             return "redirect:/login_student?error=student_not_found";
         }
