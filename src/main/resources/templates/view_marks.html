@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>View Marks</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
 </head>
 <body>
 <div class="container mt-4">
@@ -57,14 +57,14 @@
                             </div>
                             <form th:action="@{/students/save-marks}" method="post">
                                 <div class="modal-body">
-                                    <input type="hidden" name="studentId" th:value="${student.id}">
-                                    <input type="hidden" name="semesterId" th:value="${semester.id}">
-                                    <input type="hidden" name="subjectId" th:value="${enrollment.subject.id}">
+                                    <input type="hidden" name="studentId" th:value="${student.id}" />
+                                    <input type="hidden" name="semesterId" th:value="${semester.id}" />
+                                    <input type="hidden" name="subjectId" th:value="${enrollment.subject.id}" />
 
                                     <div class="mb-3">
                                         <label th:text="${enrollment.subject.name}" class="form-label"></label>
                                         <input type="number" name="marks" class="form-control"
-                                               th:value="${enrollment.marks}" min="0" max="100" required>
+                                               th:value="${enrollment.marks}" min="0" max="100" required />
                                     </div>
                                 </div>
                                 <div class="modal-footer">

@@ -2,7 +2,9 @@ package com.webapp.controller;
 
 import com.webapp.entity.*;
 import com.webapp.respository.*;
+import com.webapp.service.EnrollmentService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
@@ -13,11 +15,24 @@ import jakarta.validation.Valid;
 
 import java.time.Year;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Controller
 public class StudentController {
 
     private final StudentRepository studentRepo;
+
+
+    // Add this at the top with other autowired repositories
+    @Autowired
+    private EnrollmentService enrollmentService;
+
+    // Add this new endpoint
+    @GetMapping("/students/enroll-all")
+    public String enrollAllStudents() {
+        enrollmentService.enrollAllStudents();
+        return "redirect:/students?syncSuccess=true";
+    }
 
     @Autowired
     private UserRepository userRepository;
@@ -57,9 +72,12 @@ public class StudentController {
 
     // Admin access to student list
     @RequestMapping("/students")
-    public String studentManagement(Model model) {
+    public String studentManagement(Model model, @RequestParam(required = false) Boolean syncSuccess) {
         List<Student> students = studentRepo.findAll();
         model.addAttribute("students", students);
+        if (Boolean.TRUE.equals(syncSuccess)) {
+            model.addAttribute("successMessage", "Student accounts synchronized successfully");
+        }
         return "student_list";
     }
 
@@ -113,6 +131,9 @@ public class StudentController {
         studentRepo.save(student);
         createOrUpdateStudentUserAccount(student);
 
+        // Enroll the student in their semesters
+        enrollmentService.enrollStudent(student);
+
         return "redirect:/students";
     }
 
@@ -125,40 +146,95 @@ public class StudentController {
         return "student_form";
     }
 
+
+
     @GetMapping("/students/delete/{id}")
     public String deleteStudent(@PathVariable Long id) {
         Student student = studentRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid student Id:" + id));
 
         userRepository.findByUsername(student.getEnrollmentNo())
-                .ifPresent(user -> userRepository.delete(user));
+                .ifPresent(userRepository::delete);
 
         studentRepo.deleteById(id);
 
         return "redirect:/students";
     }
 
-    // Manage marks - merged version
+    // Manage marks - fixed to avoid 500 errors and pass all required attributes
     @GetMapping("/students/manage-marks/{studentId}")
     public String manageMarks(@PathVariable Long studentId, Model model) {
-        Student student = studentRepo.findById(studentId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid student Id:" + studentId));
+        Optional<Student> studentOpt = studentRepo.findById(studentId);
+        if (studentOpt.isEmpty()) {
+            model.addAttribute("error", "Student with ID " + studentId + " not found.");
+            return "error_page";
+        }
 
-        List<Semester> semesters = semesterRepository.findAll();
+        Student student = studentOpt.get();
+        List<Semester> allSemesters = semesterRepository.findAll();
+        int currentSemesterNumber = calculateCurrentSemesterNumber(student);
 
-        // Create map of semesters to subjects for this student's department
-        Map<Semester, List<Subject>> semesterSubjects = new LinkedHashMap<>();
-        for (Semester semester : semesters) {
-            List<Subject> subjects = subjectRepository.findBySemesterAndDepartment(
-                    semester.getName(), student.getDepartment());
-            semesterSubjects.put(semester, subjects);
+        List<Semester> availableSemesters = allSemesters.stream()
+                .filter(s -> {
+                    int semesterNumber = Integer.parseInt(s.getName().replaceAll("[^0-9]", ""));
+                    return semesterNumber <= currentSemesterNumber;
+                })
+                .collect(Collectors.toList());
+
+        // Initialize isCurrentSemester to false by default
+        boolean isCurrentSemester = false;
+        Semester selectedSemester = null;
+        List<Enrollment> enrollments = new ArrayList<>();
+
+        if (!availableSemesters.isEmpty()) {
+            selectedSemester = availableSemesters.get(0);
+            int selectedSemesterNumber = Integer.parseInt(selectedSemester.getName().replaceAll("[^0-9]", ""));
+            isCurrentSemester = (selectedSemesterNumber == currentSemesterNumber);
+
+            enrollments = enrollmentRepository.findByStudentIdAndSemesterId(studentId, selectedSemester.getId());
+            if (enrollments.isEmpty()) {
+                model.addAttribute("warning", "No enrollment records found for this student");
+            }
         }
 
         model.addAttribute("student", student);
-        model.addAttribute("semesterSubjects", semesterSubjects);
-        model.addAttribute("semesters", semesters);
+        model.addAttribute("semesters", availableSemesters);
+        model.addAttribute("currentSemesterNumber", currentSemesterNumber);
+        model.addAttribute("isCurrentSemester", isCurrentSemester);
+        model.addAttribute("selectedSemester", selectedSemester);
+        model.addAttribute("enrollments", enrollments);
 
         return "manage_marks";
+    }
+
+    private int calculateCurrentSemesterNumber(Student student) {
+        try {
+            Calendar now = Calendar.getInstance();
+            int currentYear = now.get(Calendar.YEAR);
+            int currentMonth = now.get(Calendar.MONTH) + 1; // January is 0
+
+            String enrollmentNo = student.getEnrollmentNo();
+            if (enrollmentNo == null || enrollmentNo.length() < 2) {
+                return 1; // Default to first semester
+            }
+
+            int admissionYear = 2000 + Integer.parseInt(enrollmentNo.substring(0, 2));
+            int academicYear = currentYear - admissionYear;
+
+            // Semester logic:
+            // June-November: Odd semester (1,3,5,7)
+            // December-May: Even semester (2,4,6,8)
+            if (currentMonth >= 6 && currentMonth <= 11) {
+                // Odd semester
+                return academicYear * 2 + 1;
+            } else {
+                // Even semester (December counts for next academic year)
+                if (currentMonth == 12) academicYear++;
+                return academicYear * 2;
+            }
+        } catch (Exception e) {
+            return 1; // Fallback to first semester
+        }
     }
 
     @GetMapping("/students/view-marks")
@@ -170,11 +246,24 @@ public class StudentController {
         Student student = studentRepo.findById(studentId)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid student Id:" + studentId));
 
-        Semester semester = semesterRepository.findById(semesterId)
+        Semester selectedSemester = semesterRepository.findById(semesterId)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid semester Id:" + semesterId));
 
+        int currentSemesterNumber = calculateCurrentSemesterNumber(student);
+        int selectedSemesterNumber = Integer.parseInt(selectedSemester.getName().replaceAll("[^0-9]", ""));
+        boolean isCurrentSemester = (selectedSemesterNumber == currentSemesterNumber);
+
+        List<Semester> allSemesters = semesterRepository.findAll();
+        List<Semester> availableSemesters = allSemesters.stream()
+                .filter(s -> {
+                    int semNum = Integer.parseInt(s.getName().replaceAll("[^0-9]", ""));
+                    return semNum <= currentSemesterNumber;
+                })
+                .sorted(Comparator.comparing(s -> Integer.parseInt(s.getName().replaceAll("[^0-9]", ""))))
+                .collect(Collectors.toList());
+
         List<Subject> subjects = subjectRepository.findBySemesterAndDepartment(
-                semester.getName(), student.getDepartment());
+                selectedSemester.getName(), student.getDepartment());
 
         List<Enrollment> enrollments;
         Subject selectedSubject = null;
@@ -184,7 +273,6 @@ public class StudentController {
                             studentId, semesterId, subjectId)
                     .map(List::of)
                     .orElseGet(ArrayList::new);
-
             selectedSubject = subjects.stream()
                     .filter(s -> s.getId().equals(subjectId))
                     .findFirst()
@@ -193,18 +281,19 @@ public class StudentController {
             enrollments = enrollmentRepository.findByStudentIdAndSemesterId(studentId, semesterId);
         }
 
-        boolean isEditable = isCurrentSemester(semester);
-
         model.addAttribute("student", student);
-        model.addAttribute("selectedSemester", semester);
-        model.addAttribute("selectedSubject", selectedSubject);
+        model.addAttribute("selectedSemester", selectedSemester);
+        model.addAttribute("semesters", availableSemesters);
         model.addAttribute("subjects", subjects);
+        model.addAttribute("selectedSubject", selectedSubject);
         model.addAttribute("enrollments", enrollments);
-        model.addAttribute("isEditable", isEditable);
-        model.addAttribute("semesters", semesterRepository.findAll());
+        model.addAttribute("isEditable", isCurrentSemester);
+        model.addAttribute("currentSemesterNumber", currentSemesterNumber);
+        model.addAttribute("isCurrentSemester", isCurrentSemester);
 
         return "manage_marks";
     }
+
 
     @PostMapping("/students/save-marks")
     public String saveMarks(@RequestParam Long studentId,
@@ -227,21 +316,6 @@ public class StudentController {
         return "redirect:/students/view-marks?studentId=" + studentId + "&semesterId=" + semesterId;
     }
 
-    private boolean isCurrentSemester(Semester semester) {
-        // TODO: Implement logic to check if semester is current
-        return true;
-    }
-
-    private String calculateGrade(int marks) {
-        if (marks >= 90) return "A+";
-        if (marks >= 80) return "A";
-        if (marks >= 70) return "B+";
-        if (marks >= 60) return "B";
-        if (marks >= 50) return "C";
-        if (marks >= 40) return "D";
-        return "F";
-    }
-
     @GetMapping("/student/profile")
     public String studentProfile(Model model, Authentication authentication) {
         try {
@@ -254,6 +328,30 @@ public class StudentController {
         } catch (Exception e) {
             return "redirect:/login_student?error=student_not_found";
         }
+    }
+
+    @GetMapping("/sync-student-accounts")
+    public String syncStudentAccounts() {
+        List<Student> students = studentRepo.findAll();
+        students.forEach(this::createOrUpdateStudentUserAccount);
+        return "redirect:/students?syncSuccess=true";
+    }
+
+    @GetMapping("/validate-student/{enrollmentNo}")
+    @ResponseBody
+    public ResponseEntity<String> validateStudent(@PathVariable String enrollmentNo) {
+        Optional<Student> student = studentRepo.findByEnrollmentNo(enrollmentNo);
+        Optional<User> user = userRepository.findByUsername(enrollmentNo);
+
+        if (student.isEmpty()) {
+            return ResponseEntity.badRequest().body("Student record not found");
+        }
+
+        if (user.isEmpty()) {
+            return ResponseEntity.badRequest().body("User account not found");
+        }
+
+        return ResponseEntity.ok("Student and user account exist");
     }
 
     @GetMapping("/student/change-password")
@@ -290,13 +388,34 @@ public class StudentController {
         return "change_password";
     }
 
+    private String calculateGrade(int marks) {
+        if (marks >= 90) return "A+";
+        if (marks >= 80) return "A";
+        if (marks >= 70) return "B+";
+        if (marks >= 60) return "B";
+        if (marks >= 50) return "C";
+        if (marks >= 40) return "D";
+        return "F";
+    }
+
     private String getDepartmentCode(String departmentName) {
         for (Map.Entry<String, String> entry : DEPARTMENTS.entrySet()) {
             if (entry.getValue().equals(departmentName)) {
                 return entry.getKey();
             }
         }
-        return departmentName.replaceAll("[^A-Z]", "").substring(0, 3);
+        // fallback: Extract uppercase letters and take first 3 letters or less
+        String uppercase = departmentName.replaceAll("[^A-Z]", "");
+        if (uppercase.length() >= 3) {
+            return uppercase.substring(0, 3);
+        } else if (!uppercase.isEmpty()) {
+            return uppercase;
+        } else {
+            // If no uppercase letters, fallback to first 3 letters uppercase
+            return departmentName.length() >=3 ?
+                    departmentName.substring(0, 3).toUpperCase() :
+                    departmentName.toUpperCase();
+        }
     }
 
     private void createOrUpdateStudentUserAccount(Student student) {
@@ -304,6 +423,7 @@ public class StudentController {
 
         userRepository.findByUsername(username).ifPresentOrElse(
                 user -> {
+                    // Reset password to enrollmentNo encoded - consider if you want this on update
                     user.setPassword(passwordEncoder.encode(student.getEnrollmentNo()));
                     userRepository.save(user);
                 },
