@@ -22,17 +22,8 @@ public class StudentController {
 
     private final StudentRepository studentRepo;
 
-
-    // Add this at the top with other autowired repositories
     @Autowired
     private EnrollmentService enrollmentService;
-
-    // Add this new endpoint
-    @GetMapping("/students/enroll-all")
-    public String enrollAllStudents() {
-        enrollmentService.enrollAllStudents();
-        return "redirect:/students?syncSuccess=true";
-    }
 
     @Autowired
     private UserRepository userRepository;
@@ -70,7 +61,6 @@ public class StudentController {
         this.studentRepo = studentRepo;
     }
 
-    // Admin access to student list
     @RequestMapping("/students")
     public String studentManagement(Model model, @RequestParam(required = false) Boolean syncSuccess) {
         List<Student> students = studentRepo.findAll();
@@ -88,9 +78,33 @@ public class StudentController {
         return "student_form";
     }
 
+    private String getDepartmentCodeFromFullName(String fullName) {
+        for (Map.Entry<String, String> entry : DEPARTMENTS.entrySet()) {
+            if (entry.getValue().equals(fullName)) {
+                return entry.getKey();
+            }
+        }
+        return "GEN"; // default code
+    }
+
+
     @PostMapping("/students/save")
     public String saveStudent(@Valid @ModelAttribute Student student, BindingResult result, Model model) {
         model.addAttribute("departments", DEPARTMENTS);
+
+        // Helper: get branch code from full department name
+        String correctBranch = getDepartmentCodeFromFullName(student.getDepartment());
+
+        // Auto-correct branch if mismatch
+        if (!correctBranch.equals(student.getBranch())) {
+            student.setBranch(correctBranch);
+        }
+
+        // Validate form fields (including branch now corrected)
+        if (result.hasErrors()) {
+            model.addAttribute("departments", DEPARTMENTS.values());
+            return "student_form";
+        }
 
         // Check for email uniqueness
         boolean emailExists = studentRepo.existsByEmail(student.getEmail());
@@ -98,14 +112,16 @@ public class StudentController {
             if (student.getId() == null || !studentRepo.findById(student.getId())
                     .map(s -> s.getEmail().equals(student.getEmail())).orElse(false)) {
                 result.rejectValue("email", "error.student", "This email has already been used");
+                model.addAttribute("departments", DEPARTMENTS.values());
+                return "student_form";
             }
         }
 
         // Enrollment number generation for new students
         if (student.getId() == null) {
-            String deptCode = getDepartmentCode(student.getDepartment());
+            // Use branch code (correctBranch) here, not full name
             String year = String.valueOf(Year.now().getValue()).substring(2);
-            String prefix = year + deptCode;
+            String prefix = year + correctBranch;
             long count = studentRepo.countByEnrollmentNoStartingWith(prefix);
             String sequence = String.format("%04d", count + 1);
             String enrollmentNo = prefix + sequence;
@@ -124,14 +140,17 @@ public class StudentController {
             }
         }
 
+        // Final check for errors again (optional)
         if (result.hasErrors()) {
+            model.addAttribute("departments", DEPARTMENTS.values());
             return "student_form";
         }
 
+        // Save student entity with correct branch code
         studentRepo.save(student);
-        createOrUpdateStudentUserAccount(student);
 
-        // Enroll the student in their semesters
+        // Create or update user account & enroll student
+        createOrUpdateStudentUserAccount(student);
         enrollmentService.enrollStudent(student);
 
         return "redirect:/students";
@@ -146,8 +165,6 @@ public class StudentController {
         return "student_form";
     }
 
-
-
     @GetMapping("/students/delete/{id}")
     public String deleteStudent(@PathVariable Long id) {
         Student student = studentRepo.findById(id)
@@ -161,7 +178,6 @@ public class StudentController {
         return "redirect:/students";
     }
 
-    // Manage marks - fixed to avoid 500 errors and pass all required attributes
     @GetMapping("/students/manage-marks/{studentId}")
     public String manageMarks(@PathVariable Long studentId, Model model) {
         Optional<Student> studentOpt = studentRepo.findById(studentId);
@@ -181,7 +197,6 @@ public class StudentController {
                 })
                 .collect(Collectors.toList());
 
-        // Initialize isCurrentSemester to false by default
         boolean isCurrentSemester = false;
         Semester selectedSemester = null;
         List<Enrollment> enrollments = new ArrayList<>();
@@ -211,29 +226,24 @@ public class StudentController {
         try {
             Calendar now = Calendar.getInstance();
             int currentYear = now.get(Calendar.YEAR);
-            int currentMonth = now.get(Calendar.MONTH) + 1; // January is 0
+            int currentMonth = now.get(Calendar.MONTH) + 1;
 
             String enrollmentNo = student.getEnrollmentNo();
             if (enrollmentNo == null || enrollmentNo.length() < 2) {
-                return 1; // Default to first semester
+                return 1;
             }
 
             int admissionYear = 2000 + Integer.parseInt(enrollmentNo.substring(0, 2));
             int academicYear = currentYear - admissionYear;
 
-            // Semester logic:
-            // June-November: Odd semester (1,3,5,7)
-            // December-May: Even semester (2,4,6,8)
             if (currentMonth >= 6 && currentMonth <= 11) {
-                // Odd semester
                 return academicYear * 2 + 1;
             } else {
-                // Even semester (December counts for next academic year)
                 if (currentMonth == 12) academicYear++;
                 return academicYear * 2;
             }
         } catch (Exception e) {
-            return 1; // Fallback to first semester
+            return 1;
         }
     }
 
@@ -296,7 +306,6 @@ public class StudentController {
 
         return "manage_marks";
     }
-
 
     @PostMapping("/students/save-marks")
     public String saveMarks(@RequestParam Long studentId,
@@ -407,14 +416,12 @@ public class StudentController {
                 return entry.getKey();
             }
         }
-        // fallback: Extract uppercase letters and take first 3 letters or less
         String uppercase = departmentName.replaceAll("[^A-Z]", "");
         if (uppercase.length() >= 3) {
             return uppercase.substring(0, 3);
         } else if (!uppercase.isEmpty()) {
             return uppercase;
         } else {
-            // If no uppercase letters, fallback to first 3 letters uppercase
             return departmentName.length() >=3 ?
                     departmentName.substring(0, 3).toUpperCase() :
                     departmentName.toUpperCase();
@@ -430,7 +437,6 @@ public class StudentController {
         int totalCredits = 0;
 
         for (Enrollment enrollment : enrollments) {
-            // Skip if marks are not available
             Integer marks = enrollment.getMarks();
             if (marks == null) continue;
 
@@ -452,12 +458,18 @@ public class StudentController {
         return totalCredits > 0 ? totalGradePoints / totalCredits : 0.0;
     }
 
+    @GetMapping("/students/enroll-all")
+    public String enrollAllStudents() {
+        enrollmentService.enrollAllStudents();
+        return "redirect:/students";  // Redirect to the student list page after enrollment
+    }
+
+
     private void createOrUpdateStudentUserAccount(Student student) {
         String username = student.getEnrollmentNo();
 
         userRepository.findByUsername(username).ifPresentOrElse(
                 user -> {
-                    // Reset password to enrollmentNo encoded - consider if you want this on update
                     user.setPassword(passwordEncoder.encode(student.getEnrollmentNo()));
                     userRepository.save(user);
                 },

@@ -12,12 +12,17 @@ public class Student {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "branch")
+    private String branch;
+
+
     @OneToMany(mappedBy = "student")
     private List<Enrollment> enrollments;
 
     public List<Enrollment> getEnrollments() { return enrollments; }
     public void setEnrollments(List<Enrollment> enrollments) { this.enrollments = enrollments; }
 
+    private String departmentCode;
 
     @NotBlank(message = "Name is required")
     @Size(min = 2, max = 50, message = "Name must be between 2-50 characters")
@@ -44,4 +49,6 @@ public class Student {
     public void setEmail(String email) { this.email = email; }
     public String getEnrollmentNo() { return enrollmentNo; }
     public void setEnrollmentNo(String enrollmentNo) { this.enrollmentNo = enrollmentNo; }
+    public String getBranch() { return branch; }
+    public void setBranch(String branch) { this.branch = branch; }
 }
