@@ -291,6 +291,9 @@ public class StudentController {
         model.addAttribute("currentSemesterNumber", currentSemesterNumber);
         model.addAttribute("isCurrentSemester", isCurrentSemester);
 
+        double gpa = calculateGPA(enrollments);
+        model.addAttribute("gpa", gpa);
+
         return "manage_marks";
     }
 
@@ -448,7 +451,6 @@ public class StudentController {
 
         return totalCredits > 0 ? totalGradePoints / totalCredits : 0.0;
     }
-
 
     private void createOrUpdateStudentUserAccount(Student student) {
         String username = student.getEnrollmentNo();

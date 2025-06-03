@@ -66,31 +66,30 @@
 <div class="container">
     <h2>Academic History for <span th:text="${student.name}">Student Name</span></h2>
 
-    <div th:if="${history != null and !#lists.isEmpty(history)}">
-        <div th:each="entry : ${history}">
-            <h3 th:text="${entry.key?.name}">Semester Name</h3>
-            <table>
-                <thead>
-                <tr>
-                    <th>Subject Code</th>
-                    <th>Name</th>
-                    <th>Credits</th>
-                    <th>Marks</th>
-                    <th>Grade</th>
-                </tr>
-                </thead>
-                <tbody>
-                <tr th:each="enroll : ${entry.value}">
-                    <td th:text="${enroll.subject.code}">Code</td>
-                    <td th:text="${enroll.subject.name}">Subject</td>
-                    <td th:text="${enroll.subject.credits}">Credits</td>
-                    <td th:text="${enroll.marks}">Marks</td>
-                    <td th:text="${enroll.grade}">Grade</td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
+    <div th:each="entry : ${history}">
+        <h3 th:text="${entry.key?.name}">Semester Name</h3>
+        <table>
+            <thead>
+            <tr>
+                <th>Subject Code</th>
+                <th>Name</th>
+                <th>Credits</th>
+                <th>Marks</th>
+                <th>Grade</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="enroll : ${entry.value}">
+                <td th:text="${enroll.subject.code}">Code</td>
+                <td th:text="${enroll.subject.name}">Subject</td>
+                <td th:text="${enroll.subject.credits}">Credits</td>
+                <td th:text="${enroll.marks}">Marks</td>
+                <td th:text="${enroll.grade}">Grade</td>
+            </tr>
+            </tbody>
+        </table>
     </div>
+
 
     <div th:if="${history == null or #lists.isEmpty(history)}">
         <p class="no-history">No academic history found.</p>

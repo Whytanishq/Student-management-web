@@ -105,6 +105,11 @@
                             </tbody>
                         </table>
 
+                        <!-- Replace the GPA display sections with this: -->
+                        <div style="font-size: 1.2rem; font-weight: bold; padding: 10px; background-color: #f8f9fa; border-radius: 5px; margin-top: 20px;">
+                            Semester GPA: <span th:text="${#numbers.formatDecimal(gpa, 1, 2)}"></span>
+                        </div>
+
                         <div class="text-end">
                             <button type="submit" class="btn btn-primary">Save Changes</button>
                         </div>
@@ -141,6 +146,12 @@
                         </tr>
                         </tbody>
                     </table>
+
+                    <!-- Replace the GPA display sections with this: -->
+                    <div style="font-size: 1.2rem; font-weight: bold; padding: 10px; background-color: #f8f9fa; border-radius: 5px; margin-top: 20px;">
+                        Semester GPA: <span th:text="${#numbers.formatDecimal(gpa, 1, 2)}"></span>
+                    </div>
+
                 </div>
             </div>
             <div th:unless="${selectedSemester != null}">
