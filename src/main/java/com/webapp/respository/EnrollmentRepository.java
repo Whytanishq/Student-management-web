@@ -5,6 +5,7 @@ import com.webapp.entity.Semester;
 import com.webapp.entity.Student;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 

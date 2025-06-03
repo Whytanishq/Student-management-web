@@ -2,10 +2,65 @@
 <html>
 <head>
     <title>Admin Dashboard</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f7fb;
+            color: #333;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 80px auto;
+            padding: 40px 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        h2 {
+            color: #2d3e50;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            background: #2d6cdf;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 1rem;
+            margin: 10px;
+            transition: background 0.3s ease, transform 0.2s ease;
+        }
+
+        .btn:hover {
+            background: #1c4eb1;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background-color: #e74c3c;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #888;
+            font-size: 0.85rem;
+        }
+    </style>
 </head>
-<body style="font-family: Arial; text-align: center; margin-top: 80px;">
-<h2>Admin Dashboard</h2>
-<a href="/students" style="padding: 12px 30px; background: #2d6cdf; color: #fff; border-radius: 6px; text-decoration: none; margin: 10px;">Manage Students</a>
-<a href="/logout" style="padding: 12px 30px; background: #e74c3c; color: #fff; border-radius: 6px; text-decoration: none; margin: 10px;">Logout</a>
+<body>
+<div class="container">
+    <h2>Admin Dashboard</h2>
+    <a href="/students" class="btn">Manage Students</a>
+    <a href="/logout" class="btn btn-danger">Logout</a>
+</div>
+<footer>&copy; 2025 College Name. All rights reserved.</footer>
 </body>
 </html>

@@ -1,14 +1,96 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Student Management System</title>
-    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>College Portal | Student Management System</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <style>
+        body {
+          margin: 0;
+          padding: 0;
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          background: #f4f7fb;
+          color: #333;
+        }
+
+        .container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          text-align: center;
+          padding: 20px;
+        }
+
+        .header {
+          font-size: 2.5rem;
+          font-weight: bold;
+          color: #2d3e50;
+          margin-bottom: 20px;
+        }
+
+        .subtext {
+          font-size: 1.1rem;
+          color: #555;
+          margin-bottom: 40px;
+        }
+
+        .button-group {
+          display: flex;
+          gap: 20px;
+          flex-wrap: wrap;
+        }
+
+        .btn {
+          background: #2d6cdf;
+          color: white;
+          padding: 14px 36px;
+          border: none;
+          border-radius: 8px;
+          font-size: 1rem;
+          text-decoration: none;
+          transition: background 0.3s ease, transform 0.2s ease;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn:hover {
+          background: #1c4eb1;
+          transform: translateY(-2px);
+        }
+
+        footer {
+          position: fixed;
+          bottom: 20px;
+          width: 100%;
+          text-align: center;
+          font-size: 0.85rem;
+          color: #888;
+        }
+
+        @media (max-width: 600px) {
+          .btn {
+            width: 100%;
+            text-align: center;
+          }
+
+          .button-group {
+            flex-direction: column;
+            gap: 15px;
+          }
+        }
+    </style>
 </head>
-<body style="font-family: Arial; text-align: center; margin-top: 80px;">
-<h1>Welcome to Student Management System</h1>
-<div style="margin: 40px;">
-    <a href="/login_admin" style="padding: 12px 30px; background: #2d6cdf; color: #fff; border-radius: 6px; text-decoration: none; margin: 10px;">Admin Login</a>
-    <a href="/login_student" style="padding: 12px 30px; background: #2d6cdf; color: #fff; border-radius: 6px; text-decoration: none; margin: 10px;">Student Login</a>
+<body>
+<div class="container">
+    <div class="header">Welcome to the College Student Management System</div>
+    <div class="subtext">Your centralized portal for managing student records and more.</div>
+    <div class="button-group">
+        <a href="/login_admin" class="btn">Admin Login</a>
+        <a href="/login_student" class="btn">Student Login</a>
+    </div>
 </div>
+<footer>&copy; 2025 College Name. All rights reserved.</footer>
 </body>
 </html>
