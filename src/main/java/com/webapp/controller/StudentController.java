@@ -418,6 +418,38 @@ public class StudentController {
         }
     }
 
+    private double calculateGPA(List<Enrollment> enrollments) {
+        if (enrollments == null || enrollments.isEmpty()) {
+            return 0.0;
+        }
+
+        double totalGradePoints = 0.0;
+        int totalCredits = 0;
+
+        for (Enrollment enrollment : enrollments) {
+            // Skip if marks are not available
+            Integer marks = enrollment.getMarks();
+            if (marks == null) continue;
+
+            double gradePoint;
+
+            if (marks >= 90) gradePoint = 10.0;
+            else if (marks >= 80) gradePoint = 9.0;
+            else if (marks >= 70) gradePoint = 8.0;
+            else if (marks >= 60) gradePoint = 7.0;
+            else if (marks >= 50) gradePoint = 6.0;
+            else if (marks >= 40) gradePoint = 5.0;
+            else gradePoint = 0.0;
+
+            int credits = enrollment.getSubject().getCredits();
+            totalGradePoints += gradePoint * credits;
+            totalCredits += credits;
+        }
+
+        return totalCredits > 0 ? totalGradePoints / totalCredits : 0.0;
+    }
+
+
     private void createOrUpdateStudentUserAccount(Student student) {
         String username = student.getEnrollmentNo();
 

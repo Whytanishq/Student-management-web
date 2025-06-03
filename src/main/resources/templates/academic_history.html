@@ -68,7 +68,7 @@
 
     <div th:if="${history != null and !#lists.isEmpty(history)}">
         <div th:each="entry : ${history}">
-            <h3 th:text="${entry.key?.name} + ' (' + entry.key?.year + ')'">Semester (Year)</h3>
+            <h3 th:text="${entry.key?.name}">Semester Name</h3>
             <table>
                 <thead>
                 <tr>

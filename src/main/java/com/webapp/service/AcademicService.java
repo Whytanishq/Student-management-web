@@ -13,14 +13,13 @@ public class AcademicService {
     @Autowired
     private EnrollmentRepository enrollmentRepository;
 
-    // GPA calculation logic
+    // Updated GPA calculation logic on 10-point scale
     private static final Map<String, Double> GRADE_POINTS = Map.ofEntries(
-            Map.entry("A+", 4.0), Map.entry("A", 4.0), Map.entry("A-", 3.7),
-            Map.entry("B+", 3.3), Map.entry("B", 3.0), Map.entry("B-", 2.7),
-            Map.entry("C+", 2.3), Map.entry("C", 2.0), Map.entry("C-", 1.7),
-            Map.entry("D+", 1.3), Map.entry("D", 1.0), Map.entry("F", 0.0)
+            Map.entry("A+", 10.0), Map.entry("A", 9.0), Map.entry("A-", 8.5),
+            Map.entry("B+", 8.0), Map.entry("B", 7.0), Map.entry("B-", 6.5),
+            Map.entry("C+", 6.0), Map.entry("C", 5.5), Map.entry("C-", 5.0),
+            Map.entry("D+", 4.5), Map.entry("D", 4.0), Map.entry("F", 0.0)
     );
-
 
     public double calculateGPA(List<Enrollment> enrollments) {
         double totalPoints = 0.0;
